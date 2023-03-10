@@ -22,6 +22,7 @@ extern uint g_microbench_rows;  // this many rows
 extern int g_microbench_wr_rows;  // this number of rows to write
 extern int g_nr_suppliers;
 extern int g_hybrid;
+extern int g_coro_local_wh;
 
 extern double g_wh_spread;
 

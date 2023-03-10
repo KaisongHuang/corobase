@@ -17,6 +17,7 @@ uint g_microbench_rows = 10;  // this many rows
 int g_microbench_wr_rows = 0;  // this number of rows to write
 int g_nr_suppliers = 100;
 int g_hybrid = 0;
+int g_coro_local_wh = 0;
 
 // TPC-C workload mix
 // 0: NewOrder
@@ -305,6 +306,15 @@ class tpcc_bench_runner : public bench_runner {
   virtual std::vector<bench_worker *> make_workers() {
     util::fast_random r(23984543);
     std::vector<bench_worker *> ret;
+    if (g_coro_local_wh && ermia::config::coro_tx) {
+      ASSERT(NumWarehouses() >= ermia::config::worker_threads * ermia::config::coro_batch_size);
+      for (size_t i = 0; i < ermia::config::worker_threads; i++) {
+        ret.push_back(new WorkerType(i, r.next(), db, open_tables, partitions,
+                                    &barrier_a, &barrier_b,
+                                    i * ermia::config::coro_batch_size + 1));
+      }
+      return ret;
+    }
     if (NumWarehouses() <= ermia::config::worker_threads) {
       for (size_t i = 0; i < ermia::config::worker_threads; i++)
         ret.push_back(new WorkerType(i, r.next(), db, open_tables, partitions,
@@ -359,11 +369,13 @@ void tpcc_do_test(ermia::Engine *db, int argc, char **argv) {
         {"microbench-wr-ratio", required_argument, 0, 'p'},
         {"microbench-wr-rows", required_argument, 0, 'q'},
         {"suppliers", required_argument, 0, 'z'},
+        {"coro-local-wh", required_argument, 0, 'c'},
         {"hybrid", no_argument, &g_hybrid, 1},
-        {0, 0, 0, 0}};
+        {0, 0, 0, 0}
+        };
     int option_index = 0;
     int c =
-        getopt_long(argc, argv, "r:w:s:t:n:p:q:z", long_options, &option_index);
+        getopt_long(argc, argv, "r:w:s:t:n:p:q:z:c", long_options, &option_index);
     if (c == -1) break;
     switch (c) {
       case 0:
@@ -403,9 +415,15 @@ void tpcc_do_test(ermia::Engine *db, int argc, char **argv) {
         }
         ALWAYS_ASSERT(s == 100);
       } break;
+
       case 'z':
         g_nr_suppliers = strtoul(optarg, NULL, 10);
         ALWAYS_ASSERT(g_nr_suppliers > 0);
+        break;
+
+      case 'c':
+        g_coro_local_wh = strtoul(optarg, NULL, 10);
+        ALWAYS_ASSERT(g_coro_local_wh >= 0);
         break;
 
       case '?':
@@ -478,6 +496,7 @@ void tpcc_do_test(ermia::Engine *db, int argc, char **argv) {
          << util::format_list(g_txn_workload_mix,
                         g_txn_workload_mix + ARRAY_NELEMS(g_txn_workload_mix))
          << std::endl;
+    std::cerr << "  coro-local warehouse: " << g_coro_local_wh << std::endl;
   }
 
   if (ermia::config::coro_tx) {

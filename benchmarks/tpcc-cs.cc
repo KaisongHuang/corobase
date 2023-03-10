@@ -8,7 +8,13 @@
 #include "tpcc-common.h"
 
 ermia::coro::generator<rc_t> tpcc_cs_worker::txn_new_order(uint32_t idx, ermia::epoch_num begin_epoch) {
-  const uint warehouse_id = pick_wh(r, home_warehouse_id);
+  uint _home_warehouse_id = 0;
+  if (likely(g_coro_local_wh)) {
+    _home_warehouse_id = home_warehouse_id + idx;
+  } else {
+    _home_warehouse_id = home_warehouse_id;
+  }
+  const uint warehouse_id = pick_wh(r, _home_warehouse_id);
   const uint districtID = RandomNumber(r, 1, 10);
   const uint customerID = GetCustomerId(r);
   const uint numItems = RandomNumber(r, 5, 15);
@@ -196,14 +202,14 @@ ermia::coro::generator<rc_t> tpcc_cs_worker::txn_new_order(uint32_t idx, ermia::
       const order_line::key k_ol(warehouse_id, districtID, k_no.no_o_id, ol_number);
       order_line::value v_ol;
       v_ol.ol_i_id = int32_t(ol_i_id);
-      v_ol.ol_delivery_d = 0;  // not delivered yet 
+      v_ol.ol_delivery_d = 0;  // not delivered yet
       v_ol.ol_amount = float(ol_quantity) * v_i->i_price;
-      v_ol.ol_supply_w_id = int32_t(ol_supply_w_id); 
+      v_ol.ol_supply_w_id = int32_t(ol_supply_w_id);
       v_ol.ol_quantity = int8_t(ol_quantity);
 
       const size_t order_line_sz = Size(v_ol);
       rc = tbl_order_line(warehouse_id)
-              ->InsertRecord(txn, Encode(str(arenas[idx], Size(k_ol)), k_ol), 
+              ->InsertRecord(txn, Encode(str(arenas[idx], Size(k_ol)), k_ol),
                              Encode(str(arenas[idx], order_line_sz), v_ol));
       TryCatchCoro(rc);
     }
@@ -271,7 +277,13 @@ ermia::coro::generator<rc_t> tpcc_cs_worker::txn_new_order(uint32_t idx, ermia::
 }  // new-order
 
 ermia::coro::generator<rc_t> tpcc_cs_worker::txn_payment(uint32_t idx, ermia::epoch_num begin_epoch) {
-  const uint warehouse_id = pick_wh(r, home_warehouse_id);
+  uint _home_warehouse_id = 0;
+  if (likely(g_coro_local_wh)) {
+    _home_warehouse_id = home_warehouse_id + idx;
+  } else {
+    _home_warehouse_id = home_warehouse_id;
+  }
+  const uint warehouse_id = pick_wh(r, _home_warehouse_id);
   const uint districtID = RandomNumber(r, 1, NumDistrictsPerWarehouse());
   uint customerDistrictID, customerWarehouseID;
   if (likely(g_disable_xpartition_txn || NumWarehouses() == 1 ||
@@ -300,7 +312,7 @@ ermia::coro::generator<rc_t> tpcc_cs_worker::txn_payment(uint32_t idx, ermia::ep
                                                &transactions[idx],
                                                idx);
   txn->GetXIDContext()->begin_epoch = begin_epoch;
- 
+
   const warehouse::key k_w(warehouse_id);
   warehouse::value v_w_temp;
   ermia::varstr valptr;
@@ -447,7 +459,13 @@ ermia::coro::generator<rc_t> tpcc_cs_worker::txn_delivery(uint32_t idx, ermia::e
   xc->begin_epoch = begin_epoch;
   rc_t rc = rc_t{RC_INVALID};
 
-  const uint warehouse_id = pick_wh(r, home_warehouse_id);
+  uint _home_warehouse_id = 0;
+  if (likely(g_coro_local_wh)) {
+    _home_warehouse_id = home_warehouse_id + idx;
+  } else {
+    _home_warehouse_id = home_warehouse_id;
+  }
+  const uint warehouse_id = pick_wh(r, _home_warehouse_id);
   const uint o_carrier_id = RandomNumber(r, 1, NumDistrictsPerWarehouse());
   const uint32_t ts = GetCurrentTimeMillis();
 
@@ -585,7 +603,13 @@ ermia::coro::generator<rc_t> tpcc_cs_worker::txn_order_status(uint32_t idx, ermi
   xc->begin_epoch = begin_epoch;
   rc_t rc = rc_t{RC_INVALID};
 
-  const uint warehouse_id = pick_wh(r, home_warehouse_id);
+  uint _home_warehouse_id = 0;
+  if (likely(g_coro_local_wh)) {
+    _home_warehouse_id = home_warehouse_id + idx;
+  } else {
+    _home_warehouse_id = home_warehouse_id;
+  }
+  const uint warehouse_id = pick_wh(r, _home_warehouse_id);
   const uint districtID = RandomNumber(r, 1, NumDistrictsPerWarehouse());
 
   // output from txn counters:
@@ -722,7 +746,13 @@ ermia::coro::generator<rc_t> tpcc_cs_worker::txn_stock_level(uint32_t idx, ermia
   xc->begin_epoch = begin_epoch;
   rc_t rc = rc_t{RC_INVALID};
 
-  const uint warehouse_id = pick_wh(r, home_warehouse_id);
+  uint _home_warehouse_id = 0;
+  if (likely(g_coro_local_wh)) {
+    _home_warehouse_id = home_warehouse_id + idx;
+  } else {
+    _home_warehouse_id = home_warehouse_id;
+  }
+  const uint warehouse_id = pick_wh(r, _home_warehouse_id);
   const uint threshold = RandomNumber(r, 10, 20);
   const uint districtID = RandomNumber(r, 1, NumDistrictsPerWarehouse());
 
@@ -862,7 +892,13 @@ ermia::coro::generator<rc_t> tpcc_cs_worker::txn_credit_check(uint32_t idx, ermi
   xc->begin_epoch = begin_epoch;
   rc_t rc = rc_t{RC_INVALID};
 
-  const uint warehouse_id = pick_wh(r, home_warehouse_id);
+  uint _home_warehouse_id = 0;
+  if (likely(g_coro_local_wh)) {
+    _home_warehouse_id = home_warehouse_id + idx;
+  } else {
+    _home_warehouse_id = home_warehouse_id;
+  }
+  const uint warehouse_id = pick_wh(r, _home_warehouse_id);
   const uint districtID = RandomNumber(r, 1, NumDistrictsPerWarehouse());
   uint customerDistrictID, customerWarehouseID;
   if (likely(g_disable_xpartition_txn || NumWarehouses() == 1 ||
@@ -1178,7 +1214,7 @@ ermia::coro::generator<rc_t> tpcc_cs_worker::txn_microbench_random(uint32_t idx,
   // pick start row, if it's not enough, later wrap to the first row
   uint w = start_w = RandomNumber(r, 1, NumWarehouses());
   uint s = start_s = RandomNumber(r, 1, NumItems());
-  
+
   // read rows
   ermia::varstr sv;
   for (uint i = 0; i < g_microbench_rows; i++) {

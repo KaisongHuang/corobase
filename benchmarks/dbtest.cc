@@ -430,6 +430,7 @@ int main(int argc, char **argv) {
   }
 
   system("rm -rf /dev/shm/$(whoami)/ermia-log/*");
+  system("rm -rf /mnt/nvme0n1p1/$(whoami)/ermia-log/*");
   ermia::MM::prepare_node_memory();
   std::vector<std::string> bench_toks = split_ws(FLAGS_benchmark_options);
   argc = 1 + bench_toks.size();
